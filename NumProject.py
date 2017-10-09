@@ -105,7 +105,7 @@ def ploteigenfc(y, x, title, id):
     plt.title(title, ha='center', fontsize=14)
     plt.legend()
     plt.grid()
-    plt.savefig(str(id) + '.eps', format='eps', dpi=1000)  # Optional line: saves the plot as .eps file
+    plt.savefig('files/'+str(id) + '.eps', format='eps', dpi=1000)  # Optional line: saves the plot as .eps file
 
 
 def ploteigenfcs(y1, y2, y3, x, title, id):
@@ -125,7 +125,7 @@ def ploteigenfcs(y1, y2, y3, x, title, id):
     plt.title(title, ha='center', fontsize=14)
     plt.legend()
     plt.grid()
-    plt.savefig(str(id) + '.eps', format='eps', dpi=1000)
+    plt.savefig('files/'+str(id) + '.eps', format='eps', dpi=1000)
 
 eigenfc = shooting(1.0, 0, energy, 3000)
 normalized = normalization(eigenfc)
@@ -141,27 +141,6 @@ normalized3 = normalization(eigenfc3)
 areaunder(probability(normalized3), eigenfc3[2], 2.5)
 
 ploteigenfcs(normalized, normalized2, normalized3, eigenfc[2], r'\textbf{Eigenfunctions vs Radial Distance}',
-             'physicalunts')
+             'tad')
 
-
-'''
-ploteigenfc(eigenfc[0], eigenfc[2], r'\textbf{Ground State}' '\n' r'(Energy $\epsilon = ' + str(energy) + '$)',
-            str(energy))
-ploteigenfc(normalized, eigenfc[2], r'\textbf{Ground State}' '\n' r'(Energy $\epsilon = ' + str(energy) + '$)',
-            str(energy) + 'units')
-ploteigenfc(eigenfc2[0], eigenfc2[2], r'\textbf{First Excited State}' '\n' '(Energy $\epsilon = ' +
-            str(energy2) + '$)', str(energy2))
-ploteigenfc(normalized2, eigenfc2[2], r'\textbf{First Excited State}' '\n' '(Energy $\epsilon = ' +
-            str(energy2) + '$)', str(energy2) + 'units')
-ploteigenfc(eigenfc3[0], eigenfc3[2], r'\textbf{Second Excited State - Not Normalized}' '\n' r'Energy $\epsilon = ' +
-            str(energy3) + '$)', str(energy3))
-ploteigenfc(normalized3, eigenfc3[2], r'\textbf{Second Excited State}' '\n' r'Energy $\epsilon = ' +
-            str(energy3) + '$)', str(energy3) + 'units')
-
-
-eigenfc = shooting(1.0, -1, unbounden, pts)
-
-ploteigenfc(eigenfc[0], eigenfc[2], r'\textbf{Unbound State}' '\n' r'(Energy $\epsilon = ' + str(unbounden) +
-            '$, $\Delta \, u = ' + str(round(deltau, 4)) + '$)', str(unbounden) + str(deltau))
-'''
 plt.show()
