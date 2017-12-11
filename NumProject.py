@@ -4,16 +4,9 @@ Numerical solver for Schroedinger's equation.
 import math
 import matplotlib.pyplot as plt
 from matplotlib import rc
+from cycler import cycler
 
 rc('text', usetex=True)
-
-BETA = 64
-ENERGY = 0.0980245145  # Ground state energy
-ENERGY2 = 0.38272399  # First excited state energy
-ENERGY3 = 0.807899  # Second excited state energy
-ENERGY_UNB = 2
-PTS = 30000
-DELTA_U = 4 / PTS
 
 
 def potential(position):
@@ -33,11 +26,16 @@ def shooting(initwave, initderiv, energy, noofpoints):
     First function to be called when generating a new eigenfunction. Arguments are
     used to specify initial conditions, energy epsilon, and number of points
     (spacing)
+
+    :param initwave: Initial value for the wavefunction
+    :param initderiv: Initial value for the derivative
+    :param energy: Value for the energy eigenvalue
+    :param noofpoints: Number of points calculated
     '''
     # Initializing 3d array to store wave, derivatives, and position
     wave = [[initwave], [initderiv], [0]]
     # Calculate delta x based on number of points requested
-    delta = 2.5 / noofpoints
+    delta = 3 / noofpoints
     return generate(wave, energy, delta)
 
 
@@ -46,11 +44,13 @@ def generate(wave, energy, delta):
     Function that is actually performing all the calculations for the new
     eigenfunction
     '''
-    while wave[2][-1] <= 2.5:
+    beta = 64
+
+    while wave[2][-1] <= 3:
         # Equation 2 in code form
         newwave = wave[0][-1] + delta * wave[1][-1]
         # Equation 1 in code form
-        newder = wave[1][-1] - delta * BETA * \
+        newder = wave[1][-1] - delta * beta * \
             (energy - potential(wave[2][-1])) * wave[0][-1]
         wave[0].append(newwave)
         wave[1].append(newder)
@@ -96,74 +96,57 @@ def normalization(wave):
     return [x * constant for x in wave[0]]
 
 
-def ploteigenfc(y_val, x_val, title, file_name, plots_no):
+def ploteigenfcs(x_val, lines, title, file_name):
     '''
-    Function that plots the specified eigenfunction and saves eps file in files directory.
-    Specify title included in the plots and file name
+    Plots three different functions onto one figure. Currently the color used are
+    black, blue, red, magneto, cyan, and yellow
     '''
-    plt.figure(plots_no)
-    plt.plot(x_val, y_val, color="black", linewidth=1.5, linestyle="-")
+    plt.figure()
+    plt.rc('lines', linewidth=1.5)
+    plt.rc('axes', prop_cycle=cycler(
+        'color', ['k', 'b', 'r', 'g', 'm', 'c', 'y']))
+    for desc, y_vals in lines.items():
+        plt.plot(x_val, y_vals, label=desc)
+
+    ymax = 0
+    ymin = 0
+    for y_val in lines.values():
+        ymax = max(max(y_val), ymax)
+        ymin = min(min(y_val), ymin)
+    plt.ylim(ymin, ymax)
     plt.xlim(0, 4)
-    ymin = min(y_val)
-    ymax = max(y_val)
-    if ymax > y_val[0] and ymax == y_val[-1]:
-        maxindex = round(len(x_val) / 2.5)
-        ymax = max(y_val[0:maxindex])
-    if ymin == y_val[-1] and ymin < -1:
-        ymin = -1
-    plt.ylim(ymin - 0.1, ymax + 0.1)
     plt.xlabel(r'Radius $u=r/a_{0}$')
     plt.ylabel(r'Eigenfunction $\psi(u)$')
     plt.title(title, ha='center', fontsize=14)
     plt.legend()
     plt.grid()
-    plt.savefig('files/' + str(file_name) + '.eps',
-                format='eps', dpi=1000)  # Optional line: saves the plot as .eps file
-
-
-def ploteigenfcs(y1, y2, y3, x, title, file_name, plots_no): # TODO: Plot arbitrary no. of functions
-    '''
-    Plots three different functions onto one figure. Currently the color used are
-    black, blue, and red
-    '''
-    plt.figure(plots_no)
-    plt.plot(x, y1, color="black", linewidth=1.5,
-             linestyle="-", label="Ground State")
-    plt.plot(x, y2, color="blue", linewidth=1.5,
-             linestyle="-", label="First Excited State")
-    plt.plot(x, y3, color="red", linewidth=1.5,
-             linestyle="-", label="Second Excited State")
-    ymax = 0
-    ymin = 0
-    for y_val in [y1, y2, y3]:
-        ymax = max(max(y_val), ymax)
-        ymin = min(min(y_val), ymin)
-    plt.ylim(ymin, ymax)
-    plt.xlim(0, 250)
-    plt.xlabel(r'Radius $r$ [nm]')
-    plt.ylabel(r'Eigenfunction $\psi(u)$')
-    plt.title(title, ha='center', fontsize=14)
-    plt.legend()
-    plt.grid()
-    plt.savefig('files/' + str(file_name) + '.eps', format='eps', dpi=1000)
-    return plots_no + 1
+    plt.savefig('files/' + str(file_name) + '.eps', format='eps',
+                dpi=1000)  # Optional line: saves the plot as .eps file
 
 
 def numerical_slv():
     '''
     Executes the numerical solver script and generates plots
     '''
-    plots_no = 0
+    energy0 = 0.0980245145  # Ground state energy
+    energy1 = 0.38272399  # First excited state energy
+    energy2 = 0.807899  # Second excited state energy
+    energy_unb = 2
 
-    eigenfc = shooting(1.0, 0, ENERGY, 3000)
-    normalized = normalization(eigenfc)
-    eigenfc2 = shooting(0, 1.0, ENERGY2, 3000)
-    normalized2 = normalization(eigenfc2)
-    eigenfc3 = shooting(1.0, 0, ENERGY3, 3000)
-    normalized3 = normalization(eigenfc3)
+    eigenfc = shooting(1.0, 0, energy0, 6000)
+    eigenfc2 = shooting(0, 1.0, energy1, 6000)
+    eigenfc3 = shooting(1.0, 0, energy2, 6000)
+    eigenfc_un = shooting(1.0, 1.0, energy_unb, 6000)
 
-    plots_no = ploteigenfcs(normalized, normalized2, normalized3, eigenfc[2],
-                            r'\textbf{Eigenfunctions vs Radial Distance}', 'tad', plots_no)
+    lines = {
+        'Ground State': normalization(eigenfc),
+        'First Excited State': normalization(eigenfc2),
+        'Second Excited State': normalization(eigenfc3),
+        'Unbound Energy': eigenfc_un[0]
+    }
+    ploteigenfcs(eigenfc[2], lines,
+                 r'\textbf{Eigenfunctions vs Radial Distance}', 'test')
+
     plt.show()
 
 
