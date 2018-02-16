@@ -142,8 +142,9 @@ def numerical_slv():
     eigenfc = shooting(1.0, 0, energy0, x_axis)
     normalized = normalization(eigenfc, x_axis)
     lines = {
-        'Ground State': probability(normalized),
+        'Ground State': normalized,
     }
+
     ploteigenfcs(x_axis, lines,
                  r'\textbf{Eigenfunctions vs Radial Distance}')
     plt.show()
