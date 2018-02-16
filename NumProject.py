@@ -22,7 +22,7 @@ def potential(position):
     return 1
 
 
-def shooting(initwave, initderiv, energy, noofpoints):
+def shooting(initwave, initderiv, energy, x_axis):
     '''
     First function to be called when generating a new eigenfunction. Arguments are
     used to specify initial conditions, energy epsilon, and number of points
@@ -34,47 +34,45 @@ def shooting(initwave, initderiv, energy, noofpoints):
     :param noofpoints: Number of points calculated
     '''
     # Initializing 3d array to store wave, derivatives, and position
-    wave = np.zeros((3, noofpoints))
+    wave = np.zeros((2, x_axis.size))
     wave[0][0] = initwave
     wave[1][0] = initderiv
     # Calculate delta x based on number of points requested
-    delta = 3 / noofpoints
-    return generate(wave, energy, delta)
+    return generate(wave, x_axis, energy)
 
 
-def generate(wave, energy, delta):
+def generate(wave, xscale, energy):
     '''
     Function that is actually performing all the calculations for the new
     eigenfunction
     '''
     beta = 64
+    delta = xscale.step
 
-    # You can simply change it into for function with i index
-    while wave[2][-1] <= 3:
+    for i in range(1, wave[0].size):
         # Equation 2 in code form
-        newwave = wave[0][-1] + delta * wave[1][-1]
+        wave[0][i+1] = wave[0][i] + delta * wave[1][i]
         # Equation 1 in code form
-        newder = wave[1][-1] - delta * beta * \
-            (energy - potential(wave[2][-1])) * wave[0][-1]
-        wave[0].append(newwave)
-        wave[1].append(newder)
-        # Calculating new u and adding it to the position array
-        wave[2].append(wave[2][-1] + delta)
-    return wave
+        wave[1][i+1] = wave[1][i] - delta * beta * \
+            (energy - potential(xscale[i])) * wave[0][i]
 
+    return wave[0]
 
-def areaunder(y_val, x_val, xmax):
+# TODO: automate xmax
+def areaunder(wave, x_axis, xmax):
     '''
     Function that returns the area under the graph of a mathematical
     function passed as an argument. The area is calculated from x=0
     to x=xmax
     '''
+    # Calculating the probability distribution of the wave
+    y_val = probability(wave)
     area = 0
     for i in range(0, len(y_val) - 1):
-        if x_val[i] < xmax:
+        if x_axis[i] < xmax:
             # The middle value between to y data points is used
             area += (y_val[i] + (y_val[i + 1] - y_val[i]) / 2) * \
-                (x_val[i + 1] - x_val[i])
+                (x_axis[i + 1] - x_axis[i])
     area = area * 2
     print("Area " + str(area))
     return area
@@ -84,23 +82,22 @@ def probability(wave):
     '''
     Function returning probability distribution for a given real wave function
     '''
-    return [x**2 for x in wave]
+    return wave*wave
 
 
-def normalization(wave):
+def normalization(wave, x_axis):
     '''
     Function that returns normalized wave function by calculating overall probability
     and dividing the wave function by this normalization constant
     '''
-    # Calculating the probability distribution of the wave
-    probabilitydstr = probability(wave[0])
-    constant = 1 / math.sqrt(areaunder(probabilitydstr, wave[2], 4))
+    # TODO: automate xmax
+    constant = 1 / math.sqrt(areaunder(wave, x_axis, 3))
     # List comprehension is used to divide all data points by the
     # constant = 1/K from Equation 5
-    return [x * constant for x in wave[0]]
+    return wave*constant
 
 
-def ploteigenfcs(x_val, lines, title, file_name):
+def ploteigenfcs(lines, title, file_name, save):
     '''
     Plots three different functions onto one figure. Currently the color used are
     black, blue, red, magneto, cyan, and yellow
@@ -109,14 +106,14 @@ def ploteigenfcs(x_val, lines, title, file_name):
     plt.rc('lines', linewidth=1.5)
     plt.rc('axes', prop_cycle=cycler(
         'color', ['k', 'b', 'r', 'g', 'm', 'c', 'y']))
-    for desc, y_vals in lines.items():
-        plt.plot(x_val, y_vals, label=desc)
+    for desc, wave in lines.items():
+        plt.plot(wave[1], wave[0], label=desc)
 
     ymax = 0
     ymin = 0
-    for y_val in lines.values():
-        ymax = max(max(y_val), ymax)
-        ymin = min(min(y_val), ymin)
+    for wave in lines.values():
+        ymax = np.maximum(np.amax(wave, axis=0), ymax)
+        ymin = np.minimum(np.amin(wave, axis=0), ymin)
     plt.ylim(ymin, ymax)
     plt.xlim(0, 4)
     plt.xlabel(r'Radius $u=r/a_{0}$')
@@ -124,8 +121,9 @@ def ploteigenfcs(x_val, lines, title, file_name):
     plt.title(title, ha='center', fontsize=14)
     plt.legend()
     plt.grid()
-    plt.savefig('files/' + str(file_name) + '.eps', format='eps',
-                dpi=1000)  # Optional line: saves the plot as .eps file
+    if save:
+        plt.savefig('files/' + str(file_name) + '.eps', format='eps',
+                    dpi=1000)  # Optional line: saves the plot as .eps file
 
 
 def numerical_slv():
@@ -137,19 +135,20 @@ def numerical_slv():
     energy2 = 0.807899  # Second excited state energy
     energy_unb = 2
 
+    x_axis = np.linspace(0, 3, num=6000, retstep=True)
     eigenfc = shooting(1.0, 0, energy0, 6000)
     eigenfc2 = shooting(0, 1.0, energy1, 6000)
     eigenfc3 = shooting(1.0, 0, energy2, 6000)
     eigenfc_un = shooting(1.0, 1.0, energy_unb, 6000)
 
     lines = {
-        'Ground State': normalization(eigenfc),
-        'First Excited State': normalization(eigenfc2),
-        'Second Excited State': normalization(eigenfc3),
-        'Unbound Energy': eigenfc_un[0]
+        'Ground State': normalization(eigenfc, x_axis),
+        'First Excited State': normalization(eigenfc2, x_axis),
+        'Second Excited State': normalization(eigenfc3, x_axis),
+        'Unbound Energy': eigenfc_un
     }
-    ploteigenfcs(eigenfc[2], lines,
-                 r'\textbf{Eigenfunctions vs Radial Distance}', 'test')
+    ploteigenfcs(lines,
+                 r'\textbf{Eigenfunctions vs Radial Distance}', 'test', False)
 
     plt.show()
 
