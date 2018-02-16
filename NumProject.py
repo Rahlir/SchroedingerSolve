@@ -133,26 +133,19 @@ def numerical_slv():
     '''
     Executes the numerical solver script and generates plots
     '''
-    energy0 = 0.0980245145  # Ground state energy
+    energy0 = 0.09799850486  # Ground state energy
     energy1 = 0.38272399  # First excited state energy
     energy2 = 0.807899  # Second excited state energy
     energy_unb = 2
 
-    x_axis = np.linspace(0, 3, 6000)
-    eigenfc = shooting(1.0, 0, energy0, 6000)
-    eigenfc2 = shooting(0, 1.0, energy1, 6000)
-    eigenfc3 = shooting(1.0, 0, energy2, 6000)
-    eigenfc_un = shooting(1.0, 1.0, energy_unb, 6000)
-
+    x_axis = np.linspace(0.0, 3.0, 6000)
+    eigenfc = shooting(1.0, 0, energy0, x_axis)
+    normalized = normalization(eigenfc, x_axis)
     lines = {
-        'Ground State': normalization(eigenfc, x_axis),
-        'First Excited State': normalization(eigenfc2, x_axis),
-        'Second Excited State': normalization(eigenfc3, x_axis),
-        'Unbound Energy': eigenfc_un
+        'Ground State': probability(normalized),
     }
-    ploteigenfcs(lines,
-                 r'\textbf{Eigenfunctions vs Radial Distance}', 'test', False)
-
+    ploteigenfcs(x_axis, lines,
+                 r'\textbf{Eigenfunctions vs Radial Distance}')
     plt.show()
 
 
