@@ -105,6 +105,10 @@ def ploteigenfcs(x_axis, lines, title, file_name='', save=False):
     Plots three different functions onto one figure. Currently the color used are
     black, blue, red, magneto, cyan, and yellow
     '''
+    # Get line to plot for potential energy V(x)
+    energy_function = np.vectorize(potential)
+    energy_line = energy_function(x_axis)
+
     plt.figure()
     plt.rc('lines', linewidth=1.5)
     plt.rc('axes', prop_cycle=cycler(
@@ -112,18 +116,21 @@ def ploteigenfcs(x_axis, lines, title, file_name='', save=False):
     for desc, wave in lines.items():
         plt.plot(x_axis, wave, label=desc)
 
+    plt.plot(x_axis, energy_line, label='potential')
+
     ymax = 0
     ymin = 0
     for wave in lines.values():
         ymax = np.maximum(np.amax(wave, axis=0), ymax)
         ymin = np.minimum(np.amin(wave, axis=0), ymin)
-    plt.ylim(ymin, ymax)
+    plt.ylim(ymin-0.1, ymax+0.1)
     plt.xlim(0, 4)
     plt.xlabel(r'Radius $u=r/a_{0}$')
     plt.ylabel(r'Eigenfunction $\psi(u)$')
     plt.title(title, ha='center', fontsize=14)
     plt.legend()
     plt.grid()
+
     if save:
         plt.savefig('files/' + str(file_name) + '.eps', format='eps',
                     dpi=1000)  # Optional line: saves the plot as .eps file
