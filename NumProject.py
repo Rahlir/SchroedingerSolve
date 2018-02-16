@@ -47,24 +47,27 @@ def generate(wave, xscale, energy):
     eigenfunction
     '''
     beta = 64
-    delta = xscale.step
+    delta = xscale[1] - xscale[0]
 
     for i in range(1, wave[0].size):
         # Equation 2 in code form
-        wave[0][i+1] = wave[0][i] + delta * wave[1][i]
+        wave[0][i] = wave[0][i - 1] + delta * wave[1][i - 1]
         # Equation 1 in code form
-        wave[1][i+1] = wave[1][i] - delta * beta * \
-            (energy - potential(xscale[i])) * wave[0][i]
+        wave[1][i] = wave[1][i - 1] - delta * beta * \
+            (energy - potential(xscale[i - 1])) * wave[0][i - 1]
 
     return wave[0]
 
-# TODO: automate xmax
-def areaunder(wave, x_axis, xmax):
+
+def areaunder(wave, x_axis, xmax=0):
     '''
     Function that returns the area under the graph of a mathematical
     function passed as an argument. The area is calculated from x=0
     to x=xmax
     '''
+    if xmax == 0:
+        xmax = x_axis[-1]
+
     # Calculating the probability distribution of the wave
     y_val = probability(wave)
     area = 0
@@ -82,7 +85,7 @@ def probability(wave):
     '''
     Function returning probability distribution for a given real wave function
     '''
-    return wave*wave
+    return wave * wave
 
 
 def normalization(wave, x_axis):
@@ -94,10 +97,10 @@ def normalization(wave, x_axis):
     constant = 1 / math.sqrt(areaunder(wave, x_axis, 3))
     # List comprehension is used to divide all data points by the
     # constant = 1/K from Equation 5
-    return wave*constant
+    return wave * constant
 
 
-def ploteigenfcs(lines, title, file_name, save):
+def ploteigenfcs(x_axis, lines, title, file_name='', save=False):
     '''
     Plots three different functions onto one figure. Currently the color used are
     black, blue, red, magneto, cyan, and yellow
@@ -107,7 +110,7 @@ def ploteigenfcs(lines, title, file_name, save):
     plt.rc('axes', prop_cycle=cycler(
         'color', ['k', 'b', 'r', 'g', 'm', 'c', 'y']))
     for desc, wave in lines.items():
-        plt.plot(wave[1], wave[0], label=desc)
+        plt.plot(x_axis, wave, label=desc)
 
     ymax = 0
     ymin = 0
@@ -135,7 +138,7 @@ def numerical_slv():
     energy2 = 0.807899  # Second excited state energy
     energy_unb = 2
 
-    x_axis = np.linspace(0, 3, num=6000, retstep=True)
+    x_axis = np.linspace(0, 3, 6000)
     eigenfc = shooting(1.0, 0, energy0, 6000)
     eigenfc2 = shooting(0, 1.0, energy1, 6000)
     eigenfc3 = shooting(1.0, 0, energy2, 6000)
