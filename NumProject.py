@@ -2,6 +2,7 @@
 Numerical solver for Schroedinger's equation.
 '''
 import math
+import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rc
 from cycler import cycler
@@ -33,7 +34,9 @@ def shooting(initwave, initderiv, energy, noofpoints):
     :param noofpoints: Number of points calculated
     '''
     # Initializing 3d array to store wave, derivatives, and position
-    wave = [[initwave], [initderiv], [0]]
+    wave = np.zeros((3, noofpoints))
+    wave[0][0] = initwave
+    wave[1][0] = initderiv
     # Calculate delta x based on number of points requested
     delta = 3 / noofpoints
     return generate(wave, energy, delta)
@@ -46,6 +49,7 @@ def generate(wave, energy, delta):
     '''
     beta = 64
 
+    # You can simply change it into for function with i index
     while wave[2][-1] <= 3:
         # Equation 2 in code form
         newwave = wave[0][-1] + delta * wave[1][-1]
