@@ -16,10 +16,10 @@ def potential(position):
     When u = 1.0, then potential is 1/2. And when u > 1.0, then potential is 1
     '''
     if position < 1 / 2:
-        return 0
+        return 0.0
     elif position == 1 / 2:
         return 1 / 2
-    return 1
+    return 1.0
 
 
 def shooting(initwave, initderiv, energy, x_axis):
