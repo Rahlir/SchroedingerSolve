@@ -8,18 +8,62 @@ from matplotlib import rc
 from cycler import cycler
 
 rc('text', usetex=True)
+beta = 64 # beta = 2 m a^2 V0 / h^2
 
+def find_eigenenergies(accuracy, n_max):
+    x_axis = np.linspace(0.0, 3.0, 6000)
+    del_x = x_axis*2
+    min_energy = 1/(beta*del_x**2) + potential(x_axis)
+    min_index = np.argmin(min_energy)
+    energy = min_energy[min_index]
 
-def potential(position):
-    '''
-    A function used to return a potential. When u < 1.0, then potential is 0.
-    When u = 1.0, then potential is 1/2. And when u > 1.0, then potential is 1
-    '''
-    if position < 1 / 2:
-        return 0.0
-    elif position == 1 / 2:
-        return 1 / 2
-    return 1.0
+    n = 0
+    energies = []
+    while n <= n_max:
+        energy = find_eigenenergy(accuracy, energy, n)
+        energies.append(energy)
+        n += 1
+
+    return energies
+
+def find_eigenenergy(accuracy, energy, state):
+    x_axis = np.linspace(0.0, 3.0, 6000)
+
+    init_wave = 1.0
+    init_der = 0.0
+    if state % 2 == 1:
+        init_wave = 0.0
+        init_der = 1.0
+
+    order = math.floor(math.log10(energy))
+    energy = round(energy, -order)
+    wave = shooting(init_wave, init_der, energy, x_axis)
+    del_E = 10**order
+    invert = 1.0
+    if state % 4 > 1:
+        invert = invert * -1.0
+    factor = 1.0*invert
+
+    while abs(wave[-1]) > np.amax(np.abs(wave)) * accuracy:
+        if wave[-1] < 0:
+            newfactor = -1.0
+        else:
+            newfactor = 1.0
+
+        if newfactor != factor:
+            del_E = 0.1 * del_E
+        factor = newfactor
+        energy = energy + invert*factor*del_E
+        if energy > np.max(potential(x_axis)): # In this case we have unbound eigenstate
+            return energy
+        wave = shooting(init_wave, init_der, energy, x_axis)
+
+    return energy
+
+def potential(x):
+    result = np.zeros_like(x)
+    result[np.where(x > 0.5)] = 1.0
+    return result
 
 
 def shooting(initwave, initderiv, energy, x_axis):
@@ -46,15 +90,15 @@ def generate(wave, xscale, energy):
     Function that is actually performing all the calculations for the new
     eigenfunction
     '''
-    beta = 64
     delta = xscale[1] - xscale[0]
+    potential_arr = potential(xscale)
 
     for i in range(1, wave[0].size):
         # Equation 2 in code form
         wave[0][i] = wave[0][i - 1] + delta * wave[1][i - 1]
         # Equation 1 in code form
         wave[1][i] = wave[1][i - 1] - delta * beta * \
-            (energy - potential(xscale[i - 1])) * wave[0][i - 1]
+            (energy - potential_arr[i - 1]) * wave[0][i - 1]
 
     return wave[0]
 
@@ -106,8 +150,7 @@ def ploteigenfcs(x_axis, lines, title, file_name='', save=False):
     black, blue, red, magneto, cyan, and yellow
     '''
     # Get line to plot for potential energy V(x)
-    energy_function = np.vectorize(potential)
-    energy_line = energy_function(x_axis)
+    energy_line = potential(x_axis)
 
     plt.figure()
     plt.rc('lines', linewidth=1.5)
@@ -123,7 +166,7 @@ def ploteigenfcs(x_axis, lines, title, file_name='', save=False):
     for wave in lines.values():
         ymax = np.maximum(np.amax(wave, axis=0), ymax)
         ymin = np.minimum(np.amin(wave, axis=0), ymin)
-    plt.ylim(ymin-0.1, ymax+0.1)
+    plt.ylim(ymin - 0.1, ymax + 0.1)
     plt.xlim(0, 4)
     plt.xlabel(r'Radius $u=r/a_{0}$')
     plt.ylabel(r'Eigenfunction $\psi(u)$')
@@ -140,22 +183,24 @@ def numerical_slv():
     '''
     Executes the numerical solver script and generates plots
     '''
-    energy0 = 0.09799850486  # Ground state energy
-    energy1 = 0.38272399  # First excited state energy
-    energy2 = 0.807899  # Second excited state energy
-    energy_unb = 2
+    energies = find_eigenenergies(0.1, 2) # Find first 3 bound eigenenergies
 
     x_axis = np.linspace(0.0, 3.0, 6000)
-    eigenfc = shooting(1.0, 0, energy0, x_axis)
+    eigenfc = shooting(1.0, 0, energies[0], x_axis)
     normalized = normalization(eigenfc, x_axis)
+    eigenfc_exc = shooting(0.0, 1.0, energies[1], x_axis)
+    normalized_exc = normalization(eigenfc_exc, x_axis)
+    eigenfc_exc2 = shooting(1.0, 0.0, energies[2], x_axis)
+    normalized_exc2 = normalization(eigenfc_exc2, x_axis)
     lines = {
         'Ground State': normalized,
+        'First Excited': normalized_exc,
+        'Second Excited': normalized_exc2
     }
 
     ploteigenfcs(x_axis, lines,
                  r'\textbf{Eigenfunctions vs Radial Distance}')
     plt.show()
-
 
 if __name__ == "__main__":
     numerical_slv()
