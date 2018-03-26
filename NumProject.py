@@ -6,102 +6,68 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rc
 from cycler import cycler
+from scipy import integrate
 
 rc('text', usetex=True)
-beta = 64 # beta = 2 m a^2 V0 / h^2
+beta = 64  # beta = 2 m a^2 V0 / h^2
 
-def find_eigenenergies(accuracy, n_max):
-    x_axis = np.linspace(0.0, 3.0, 6000)
-    del_x = x_axis*2
-    min_energy = 1/(beta*del_x**2) + potential(x_axis)
-    min_index = np.argmin(min_energy)
-    energy = min_energy[min_index]
+
+def find_eigenenergies(x_axis, accuracy, n_max):
+    del_x = x_axis * 2
+    potential_arr = np.array([potential(x) for x in x_axis])
+    min_energy = 1 / (beta * del_x**2) + potential_arr
+    energy = np.min(min_energy)
 
     n = 0
     energies = []
     while n <= n_max:
-        energy = find_eigenenergy(accuracy, energy, n)
+        energy = find_eigenenergy(x_axis, accuracy, energy, n)
         energies.append(energy)
         n += 1
 
+    print(energies)
     return energies
 
-def find_eigenenergy(accuracy, energy, state):
-    x_axis = np.linspace(0.0, 3.0, 6000)
 
-    init_wave = 1.0
-    init_der = 0.0
-    if state % 2 == 1:
-        init_wave = 0.0
-        init_der = 1.0
-
+def find_eigenenergy(x_axis, accuracy, energy, state):
     order = math.floor(math.log10(energy))
     energy = round(energy, -order)
-    wave = shooting(init_wave, init_der, energy, x_axis)
     del_E = 10**order
-    invert = 1.0
-    if state % 4 > 1:
-        invert = invert * -1.0
-    factor = 1.0*invert
+    factor = 1.0
 
-    while abs(wave[-1]) > np.amax(np.abs(wave)) * accuracy:
-        if wave[-1] < 0:
+    while math.floor(math.log10(del_E)) > -accuracy:
+        wave = shooting(energy, x_axis)
+        if nodes(wave) > state:
             newfactor = -1.0
         else:
             newfactor = 1.0
 
         if newfactor != factor:
-            del_E = 0.1 * del_E
+            del_E = 0.5 * del_E
         factor = newfactor
-        energy = energy + invert*factor*del_E
-        if energy > np.max(potential(x_axis)): # In this case we have unbound eigenstate
-            return energy
-        wave = shooting(init_wave, init_der, energy, x_axis)
+        energy = energy + factor*del_E
 
     return energy
 
 def potential(x):
-    result = np.zeros_like(x)
-    result[np.where(x > 0.5)] = 1.0
-    return result
+    if x > 0.5 or x < -0.5:
+        return 1
 
+    return 0
 
-def shooting(initwave, initderiv, energy, x_axis):
-    '''
-    First function to be called when generating a new eigenfunction. Arguments are
-    used to specify initial conditions, energy epsilon, and number of points
-    (spacing)
+def nodes(x):
+    neighbor = np.roll(x, 1)
+    neighbor[0] = 0
+    return len(np.where(x * neighbor < 0)[0])
 
-    :param initwave: Initial value for the wavefunction
-    :param initderiv: Initial value for the derivative
-    :param energy: Value for the energy eigenvalue
-    :param noofpoints: Number of points calculated
-    '''
-    # Initializing 3d array to store wave, derivatives, and position
-    wave = np.zeros((2, x_axis.size))
-    wave[0][0] = initwave
-    wave[1][0] = initderiv
-    # Calculate delta x based on number of points requested
-    return generate(wave, x_axis, energy)
+def solver(wave, x, energy):
+    dpdx = [wave[1], -beta * (energy - potential(x)) * wave[0]]
+    return dpdx
 
-
-def generate(wave, xscale, energy):
-    '''
-    Function that is actually performing all the calculations for the new
-    eigenfunction
-    '''
-    delta = xscale[1] - xscale[0]
-    potential_arr = potential(xscale)
-
-    for i in range(1, wave[0].size):
-        # Equation 2 in code form
-        wave[0][i] = wave[0][i - 1] + delta * wave[1][i - 1]
-        # Equation 1 in code form
-        wave[1][i] = wave[1][i - 1] - delta * beta * \
-            (energy - potential_arr[i - 1]) * wave[0][i - 1]
-
-    return wave[0]
-
+def shooting(energy, x_axis):
+    initial = [0.01, -0.01]
+    solution = integrate.odeint(solver, initial, x_axis, args=(energy,))
+    return solution[:, 0]
 
 def areaunder(wave, x_axis, xmax=0):
     '''
@@ -137,8 +103,7 @@ def normalization(wave, x_axis):
     Function that returns normalized wave function by calculating overall probability
     and dividing the wave function by this normalization constant
     '''
-    # TODO: automate xmax
-    constant = 1 / math.sqrt(areaunder(wave, x_axis, 3))
+    constant = 1 / math.sqrt(areaunder(wave, x_axis))
     # List comprehension is used to divide all data points by the
     # constant = 1/K from Equation 5
     return wave * constant
@@ -150,16 +115,15 @@ def ploteigenfcs(x_axis, lines, title, file_name='', save=False):
     black, blue, red, magneto, cyan, and yellow
     '''
     # Get line to plot for potential energy V(x)
-    energy_line = potential(x_axis)
+    energy_line = np.array([potential(x) for x in x_axis])
 
     plt.figure()
     plt.rc('lines', linewidth=1.5)
     plt.rc('axes', prop_cycle=cycler(
         'color', ['k', 'b', 'r', 'g', 'm', 'c', 'y']))
+    lines.update({'Potential': energy_line})
     for desc, wave in lines.items():
         plt.plot(x_axis, wave, label=desc)
-
-    plt.plot(x_axis, energy_line, label='potential')
 
     ymax = 0
     ymin = 0
@@ -167,7 +131,7 @@ def ploteigenfcs(x_axis, lines, title, file_name='', save=False):
         ymax = np.maximum(np.amax(wave, axis=0), ymax)
         ymin = np.minimum(np.amin(wave, axis=0), ymin)
     plt.ylim(ymin - 0.1, ymax + 0.1)
-    plt.xlim(0, 4)
+    plt.xlim(-3, 3)
     plt.xlabel(r'Radius $u=r/a_{0}$')
     plt.ylabel(r'Eigenfunction $\psi(u)$')
     plt.title(title, ha='center', fontsize=14)
@@ -183,15 +147,17 @@ def numerical_slv():
     '''
     Executes the numerical solver script and generates plots
     '''
-    energies = find_eigenenergies(0.1, 2) # Find first 3 bound eigenenergies
+    x_axis = np.linspace(-3.0, 3.0, 12000)
 
-    x_axis = np.linspace(0.0, 3.0, 6000)
-    eigenfc = shooting(1.0, 0, energies[0], x_axis)
-    normalized = normalization(eigenfc, x_axis)
-    eigenfc_exc = shooting(0.0, 1.0, energies[1], x_axis)
-    normalized_exc = normalization(eigenfc_exc, x_axis)
-    eigenfc_exc2 = shooting(1.0, 0.0, energies[2], x_axis)
-    normalized_exc2 = normalization(eigenfc_exc2, x_axis)
+    # Find first 3 bound eigenenergies
+    energies = find_eigenenergies(x_axis, 12, 2) # I found that the precision needs to be at least 11
+
+    eigenfc = shooting(energies[0], x_axis)
+    normalized = normalization(eigenfc, x_axis) + energies[0]
+    eigenfc_exc = shooting(energies[1], x_axis)
+    normalized_exc = normalization(eigenfc_exc, x_axis) + energies[1]
+    eigenfc_exc2 = shooting(energies[2], x_axis)
+    normalized_exc2 = normalization(eigenfc_exc2, x_axis) + energies[2]
     lines = {
         'Ground State': normalized,
         'First Excited': normalized_exc,
@@ -201,6 +167,7 @@ def numerical_slv():
     ploteigenfcs(x_axis, lines,
                  r'\textbf{Eigenfunctions vs Radial Distance}')
     plt.show()
+
 
 if __name__ == "__main__":
     numerical_slv()
