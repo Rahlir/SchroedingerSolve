@@ -37,6 +37,7 @@ def find_eigenenergy(x_axis, accuracy, energy, state):
 
     while math.floor(math.log10(del_E)) > -accuracy:
         wave = shooting(energy, x_axis)
+        print('{:.20f}, nodes: {:.1f}'.format(energy, nodes(wave)))
         if nodes(wave) > state:
             newfactor = -1.0
         else:
@@ -46,6 +47,9 @@ def find_eigenenergy(x_axis, accuracy, energy, state):
             del_E = 0.5 * del_E
         factor = newfactor
         energy = energy + factor*del_E
+        # plt.figure()
+        # plt.plot(x_axis, wave)
+        # plt.show()
 
     return energy
 
@@ -65,7 +69,7 @@ def solver(wave, x, energy):
     return dpdx
 
 def shooting(energy, x_axis):
-    initial = [0.01, -0.01]
+    initial = [0.01, 0.001]
     solution = integrate.odeint(solver, initial, x_axis, args=(energy,))
     return solution[:, 0]
 
@@ -150,24 +154,33 @@ def numerical_slv():
     x_axis = np.linspace(-3.0, 3.0, 12000)
 
     # Find first 3 bound eigenenergies
-    energies = find_eigenenergies(x_axis, 12, 2) # I found that the precision needs to be at least 11
+    energies = find_eigenenergies(x_axis, 18, 0) # I found that the precision needs to be at least 11
 
     eigenfc = shooting(energies[0], x_axis)
     normalized = normalization(eigenfc, x_axis) + energies[0]
-    eigenfc_exc = shooting(energies[1], x_axis)
-    normalized_exc = normalization(eigenfc_exc, x_axis) + energies[1]
-    eigenfc_exc2 = shooting(energies[2], x_axis)
-    normalized_exc2 = normalization(eigenfc_exc2, x_axis) + energies[2]
+#    eigenfc_exc = shooting(energies[1], x_axis)
+#    normalized_exc = normalization(eigenfc_exc, x_axis) + energies[1]
+#    eigenfc_exc2 = shooting(energies[2], x_axis)
+#    normalized_exc2 = normalization(eigenfc_exc2, x_axis) + energies[2]
     lines = {
-        'Ground State': normalized,
-        'First Excited': normalized_exc,
-        'Second Excited': normalized_exc2
+        'Ground State': normalized
+#        'First Excited': normalized_exc,
+#        'Second Excited': normalized_exc2
     }
 
     ploteigenfcs(x_axis, lines,
                  r'\textbf{Eigenfunctions vs Radial Distance}')
     plt.show()
 
+def test():
+    x_axis = np.linspace(-3.0, 3.0, 12000)
+    energies = find_eigenenergies(x_axis, 11, 0)
+
+    eigenfc = shooting(energies[0], x_axis)
+
+    plt.figure()
+    plt.plot(x_axis, eigenfc)
+    plt.show()
 
 if __name__ == "__main__":
-    numerical_slv()
+    test()
